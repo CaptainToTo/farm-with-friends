@@ -59,7 +59,7 @@ def remove_player_rpc_encode(id):
     return bytes((REMOVE_PLAYER_RPC_ID, id))
 
 def remove_player_rpc_decode(data):
-    return (data[1])
+    return (data[1],)
 
 # move player rpc
 

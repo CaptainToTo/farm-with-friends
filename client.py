@@ -9,10 +9,10 @@ import lib.farm
 import select
 
 # login
-local_username = input("username: ")
+local_username = input("username: ") if lib.consts.USERNAME is None else lib.consts.USERNAME
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(('127.0.0.1', lib.consts.SERVER_PORT))
+client.connect((lib.consts.SERVER_IP, lib.consts.SERVER_PORT))
 read_list = [client]
 
 client.send(local_username.encode())

@@ -1,5 +1,9 @@
 import random
 
+# login
+USERNAME  = None
+SERVER_IP = '127.0.0.1'
+
 # game dimensions
 FARM_WIDTH  = 20
 FARM_HEIGHT = 10
