@@ -170,3 +170,6 @@ while True:
         buffer.reset_buffer()
 
     last_tick = new_tick
+
+    # write game state to db
+    db.save_changes()
