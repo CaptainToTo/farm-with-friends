@@ -8,6 +8,7 @@ MAX_PLAYERS = 4
 SERVER_PORT = 8080
 TICK_FREQ   = 0.1  # 10 fps, sort of
 MAX_GROWTH  = 20   # this x10 can't be greater than 256
+BUFFER_SIZE = 4096
 
 # controls
 UP       = 'w'

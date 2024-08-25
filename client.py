@@ -1,4 +1,5 @@
 import socket
+import lib.buffer
 import lib.consts
 import lib.protocols
 import client_lib.game_render
@@ -33,41 +34,47 @@ def main(stdscr):
 
         for s in readable:
             if s is client:
-                data = s.recv(1024)
+                data = s.recv(lib.consts.BUFFER_SIZE)
 
-                # apply state update from server
                 try:
-                    rpc_id, args = lib.protocols.decode_server_rpc(data)
+                    rpcs = lib.buffer.Buffer.get_rpcs(data)
 
-                    if rpc_id == lib.protocols.ADD_PLAYER_RPC_ID:
-                        id, username, row, col = args
-                        game_map.add_player(id, username, row, col)
+                    # apply state updates from server
+                    for rpc in rpcs:
+                        try:
+                            rpc_id, args = lib.protocols.decode_server_rpc(rpc)
 
-                        # save local player
-                        if username == local_username:
-                            local_id = id
-                            local_player = game_map.get_player(id)
-                    
-                    elif rpc_id == lib.protocols.REMOVE_PLAYER_RPC_ID:
-                        id = args[0]
-                        game_map.remove_player(id)
-                    
-                    elif rpc_id == lib.protocols.MOVE_PLAYER_RPC_ID:
-                        id, row, col = args
-                        game_map.move_player_to(id, row, col)
-                    
-                    elif rpc_id == lib.protocols.PLANT_CROP_RPC_ID:
-                        crop_type, growth, row, col = args
-                        game_map.plant_crop(crop_type, growth, row, col)
-                    
-                    elif rpc_id == lib.protocols.HARVEST_CROP_RPC_ID:
-                        row, col = args
-                        game_map.harvest_crop(row, col)
-                    
-                    elif rpc_id == lib.protocols.CROP_GROW_RPC_ID:
-                        growth, row, col = args
-                        game_map.get_crop(row, col).growth = growth
-                
+                            if rpc_id == lib.protocols.ADD_PLAYER_RPC_ID:
+                                id, username, row, col = args
+                                game_map.add_player(id, username, row, col)
+
+                                # save local player
+                                if username == local_username:
+                                    local_id = id
+                                    local_player = game_map.get_player(id)
+                            
+                            elif rpc_id == lib.protocols.REMOVE_PLAYER_RPC_ID:
+                                id = args[0]
+                                game_map.remove_player(id)
+                            
+                            elif rpc_id == lib.protocols.MOVE_PLAYER_RPC_ID:
+                                id, row, col = args
+                                game_map.move_player_to(id, row, col)
+                            
+                            elif rpc_id == lib.protocols.PLANT_CROP_RPC_ID:
+                                crop_type, growth, row, col = args
+                                game_map.plant_crop(crop_type, growth, row, col)
+                            
+                            elif rpc_id == lib.protocols.HARVEST_CROP_RPC_ID:
+                                row, col = args
+                                game_map.harvest_crop(row, col)
+                            
+                            elif rpc_id == lib.protocols.CROP_GROW_RPC_ID:
+                                growth, row, col = args
+                                game_map.get_crop(row, col).growth = growth
+                        
+                        except:
+                            pass
                 except:
                     pass
         

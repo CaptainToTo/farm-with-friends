@@ -1,4 +1,5 @@
 import mysql.connector
+import lib.buffer
 import lib.consts
 import lib.farm
 import socket
@@ -8,7 +9,8 @@ import time
 
 def broadcast(player_list, data):
     for player in player_list:
-        player.send(data)
+        id, buffer = player_list[player]
+        buffer.add(data)
 
 # load database
 
@@ -60,7 +62,7 @@ while True:
             read_list.append(client)
 
             # player login
-            username = client.recv(1024).decode()
+            username = client.recv(lib.consts.BUFFER_SIZE).decode()
 
             # load player, or create a new player if the username doesn't exist in the database
             cursor.execute("SELECT * FROM Users WHERE username = %s", (username,))
@@ -71,9 +73,12 @@ while True:
                 player_save = cursor.fetchall()
             
             id, name, row, col = player_save[0]
+
+            # each player gets a buffer
+            buffer = lib.buffer.Buffer()
             
             # associate client socket to player id
-            players[client] = id
+            players[client] = (id, buffer)
             print(f"{username} joined the game ({row}, {col})")
             
             # add player to game
@@ -83,15 +88,15 @@ while True:
             # send new player current game state
             for player in game_map.players.values():
                 if player.id != id:
-                    client.send(lib.protocols.add_player_rpc_encode(player.id, player.username, player.row, player.col))
+                    buffer.add(lib.protocols.add_player_rpc_encode(player.id, player.username, player.row, player.col))
             for crop_obj in game_map.get_crops():
                 crop, crop_row, crop_col = crop_obj
-                client.send(lib.protocols.plant_crop_rpc_encode(crop.crop_type, crop.growth, crop_row, crop_col))
+                buffer.add(lib.protocols.plant_crop_rpc_encode(crop.crop_type, crop.growth, crop_row, crop_col))
         
         # currently connected player is sending input
         else:
-            data = s.recv(1024)
-            id = players[s]
+            data = s.recv(lib.consts.BUFFER_SIZE)
+            id, buffer = players[s]
             player = game_map.get_player(id)
 
             # apply player input and send state update
@@ -122,11 +127,18 @@ while True:
             
             # handle faulty rpc composition
             except ValueError as err:
-                # enforce player position to correct de-sync
+                # enforce state to correct de-sync
                 if err.args[0] == lib.protocols.MOVE_INPUT_RPC_ID:
                     broadcast(players, lib.protocols.move_player_rpc_encode(id, player.row, player.col))
+                
+                elif err.args[0] == lib.protocols.PLANT_INPUT_RPC_ID:
+                    crop = game_map.get_crop(player.row, player.col)
+                    buffer.add(lib.protocols.plant_crop_rpc_encode(crop.crop_type, crop.growth, player.row, player.col))
+                
+                elif err.args[0] == lib.protocols.HARVEST_INPUT_RPC_ID:
+                    buffer.add(lib.protocols.harvest_crop_rpc_encode(player.row, player.col))
 
-                print("faulty rpc received from " + game_map.get_player(players[s]).username)
+                print("faulty rpc received from " + game_map.get_player(id).username)
 
     # update crop growth, crop object is a tuple (Crop instance, row, col)
     for crop_obj in game_map.get_crops():
@@ -134,5 +146,13 @@ while True:
         crop.grow(delta)
         # send update to clients
         broadcast(players, lib.protocols.crop_grow_rpc_encode(crop.growth, row, col))
+    
+    # send all non empty buffers
+    for player in players:
+        id, buffer = players[player]
+        if not buffer.is_empty:
+            print(str(buffer.get_buffer()))
+            player.send(buffer.get_buffer())
+        buffer.reset_buffer()
 
     last_tick = new_tick
