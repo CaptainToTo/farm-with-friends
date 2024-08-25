@@ -16,7 +16,12 @@ def broadcast(player_list, data):
 
 password = input("database password: ")
 
-db = server_lib.db.Database(password)
+db = None
+try:
+    db = server_lib.db.Database(password)
+except:
+    print("database connection failed")
+    quit()
 
 # load farm grid
 grid_save = db.get_crops()
@@ -40,6 +45,8 @@ read_list = [server]
 players = {}
 
 last_tick = time.time()
+
+print("game started, waiting for connections...")
 
 # simulation loop
 while True:

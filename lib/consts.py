@@ -36,7 +36,7 @@ def is_crop_type(value):
     return CARROTS <= value <= WATERMELON
 
 def get_random_crop():
-    return random.randrange(WATERMELON)
+    return random.randrange(WATERMELON + 1)
 
 # crops characters
 CROP_CHAR = [
