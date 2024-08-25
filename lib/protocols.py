@@ -79,11 +79,11 @@ def plant_crop_rpc_decode(data):
 
 # harvest crop rpc
 
-def harvest_crop_rpc_encode(row, col):
-    return bytes((HARVEST_CROP_RPC_ID, row, col))
+def harvest_crop_rpc_encode(profits: int, row, col):
+    return bytes((HARVEST_CROP_RPC_ID,)) + profits.to_bytes(2, byteorder='big') + bytes((row, col))
 
 def harvest_crop_rpc_decode(data):
-    return (data[1], data[2])
+    return (int.from_bytes(data[1:3], byteorder='big'), data[3], data[4])
 
 # crop grow rpc
 

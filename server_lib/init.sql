@@ -3,8 +3,8 @@
 CREATE TABLE Users(
     id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) NOT NULL UNIQUE,
-    pos_x INT NOT NULL,
-    pos_y INT NOT NULL
+    pos_row INT NOT NULL,
+    pos_col INT NOT NULL
 );
 
 CREATE INDEX username_index ON Users(username);
@@ -20,3 +20,5 @@ CREATE INDEX crops_index ON Crops(coords);
 CREATE TABLE Profit(
     val INT NOT NULL
 );
+
+INSERT INTO Profit (val) VALUES (0);

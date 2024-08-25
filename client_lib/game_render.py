@@ -57,3 +57,6 @@ def display_cell(stdscr, rect, crop, row, col):
     stdscr.addstr(rect.top_inspector, rect.left_inspector, f"Cell: ({row + 1}, {col + 1})")
     stdscr.addstr(rect.top_inspector + 1, rect.left_inspector, f"Crop: {str(crop)}     ")
     stdscr.addstr(rect.top_inspector + 2, rect.left_inspector, f"Growth: {crop.growth if crop != None else "       "}")
+
+def display_profit(stdscr, rect, profit):
+    stdscr.addstr(rect.bottom_inspector, rect.left_inspector, f"Profit: {profit}     ")

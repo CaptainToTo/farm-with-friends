@@ -28,6 +28,8 @@ def main(stdscr):
     local_id = -1
     local_player = None
 
+    profit = 0
+
     # simulation loop
     while True:
         readable, writable, errored = select.select(read_list, [], [], lib.consts.TICK_FREQ)
@@ -36,7 +38,13 @@ def main(stdscr):
             if s is client:
                 data = s.recv(lib.consts.BUFFER_SIZE)
 
+                # handle server shutdown
+                if not data:
+                    print("disconnected from server unexpectedly")
+                    return
+
                 try:
+                    # split buffer into list of rpc encodings
                     rpcs = lib.buffer.Buffer.get_rpcs(data)
 
                     # apply state updates from server
@@ -66,7 +74,7 @@ def main(stdscr):
                                 game_map.plant_crop(crop_type, growth, row, col)
                             
                             elif rpc_id == lib.protocols.HARVEST_CROP_RPC_ID:
-                                row, col = args
+                                profit, row, col = args
                                 game_map.harvest_crop(row, col)
                             
                             elif rpc_id == lib.protocols.CROP_GROW_RPC_ID:
@@ -95,10 +103,16 @@ def main(stdscr):
             client.send(lib.protocols.move_input_rpc_encode(local_player.row, local_player.col + 1))
         
         elif char == ord(lib.consts.INTERACT) and game_map.cell_empty(local_player.row, local_player.col):
-            client.send(lib.protocols.plant_input_rpc_encode(lib.consts.CARROTS))
+            client.send(lib.protocols.plant_input_rpc_encode(lib.consts.get_random_crop()))
         
         elif char == ord(lib.consts.INTERACT) and not game_map.cell_empty(local_player.row, local_player.col):
             client.send(lib.protocols.harvest_input_rpc_encode())
+        
+        elif char == ord(lib.consts.QUIT):
+            print("leaving game")
+            client.close()
+            return
+
         
         # render frame
         stdscr.clear()
@@ -120,6 +134,11 @@ def main(stdscr):
             game_map.get_crop(local_player.row, local_player.col), 
             local_player.row, 
             local_player.col
+            )
+        client_lib.game_render.display_profit(
+            stdscr,
+            rect,
+            profit
             )
         stdscr.refresh()
 

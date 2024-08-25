@@ -6,6 +6,7 @@ import socket
 import lib.protocols
 import select
 import time
+import server_lib.db
 
 def broadcast(player_list, data):
     for player in player_list:
@@ -16,24 +17,18 @@ def broadcast(player_list, data):
 
 password = input("database password: ")
 
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",        # TODO: replace with different user if applicable
-    password=password,
-    database="Farm"
-)
-
-cursor = db.cursor()
+db = server_lib.db.Database(password)
 
 # load farm grid
-cursor.execute("SELECT * FROM Crops")
-grid_save = cursor.fetchall()
+grid_save = db.get_crops()
+profit = db.get_profit()
 
 # game map contains server authoritative game state
 game_map = lib.farm.Farm(lib.consts.FARM_WIDTH, lib.consts.FARM_HEIGHT)
 
 for crop_save in grid_save:
-    coords = lib.farm.deserialize_coords(crop_save[0])
+    coords = server_lib.db.deserialize_coords(crop_save[0])
+    # crop_type, growth, row, col
     game_map.plant_crop(crop_save[1], crop_save[2], coords[0], coords[1])
 
 # open server
@@ -59,20 +54,18 @@ while True:
         # if receiving on the server socket, this is a new player connecting
         if s is server:
             client, addr = server.accept()
-            read_list.append(client)
 
             # player login
             username = client.recv(lib.consts.BUFFER_SIZE).decode()
 
-            # load player, or create a new player if the username doesn't exist in the database
-            cursor.execute("SELECT * FROM Users WHERE username = %s", (username,))
-            player_save = cursor.fetchall()
-            if (len(player_save) == 0):
-                cursor.execute("INSERT INTO Users (username, pos_x, pos_y) VALUES (%s, 0, 0)", (username,))
-                cursor.execute("SELECT * FROM Users WHERE username = %s", (username,))
-                player_save = cursor.fetchall()
-            
-            id, name, row, col = player_save[0]
+            # reject if player is already logged in
+            if game_map.has_player(username):
+                client.close()
+                continue
+
+            # load player, or create a new player if the username doesn't exist in the database            
+            id, name, row, col = db.login_player(username)
+            read_list.append(client)
 
             # each player gets a buffer
             buffer = lib.buffer.Buffer()
@@ -95,9 +88,24 @@ while True:
         
         # currently connected player is sending input
         else:
-            data = s.recv(lib.consts.BUFFER_SIZE)
+            data = None
+            try:
+                data = s.recv(lib.consts.BUFFER_SIZE)
+            except:
+                pass
             id, buffer = players[s]
             player = game_map.get_player(id)
+
+            # player has disconnected
+            if not data:
+                print(f"{player.username} has left the game")
+                players.pop(s)
+                game_map.remove_player(id)
+                read_list.remove(s)
+                s.close()
+                broadcast(players, lib.protocols.remove_player_rpc_encode(id))
+                continue
+
 
             # apply player input and send state update
             rpc_id, args = lib.protocols.decode_client_rpc(data)
@@ -106,10 +114,11 @@ while True:
                 if rpc_id == lib.protocols.MOVE_INPUT_RPC_ID:
                     row, col = args
                     if not (game_map.is_valid_coord(row, col) and game_map.is_next_to_player(id, row, col)):
-                        print(player.row, player.col, row, col)
                         raise ValueError(lib.protocols.MOVE_INPUT_RPC_ID)
                     game_map.move_player_to(id, row, col)
                     broadcast(players, lib.protocols.move_player_rpc_encode(id, row, col))
+                    db.move_player(id, row, col)
+                    print(f"{player.username} moved to ({row}, {col})")
                 
                 elif rpc_id == lib.protocols.PLANT_INPUT_RPC_ID:
                     crop_type = args[0]
@@ -118,12 +127,16 @@ while True:
                     game_map.plant_crop(crop_type, 0, player.row, player.col)
                     growth = game_map.get_crop(player.row, player.col).growth
                     broadcast(players, lib.protocols.plant_crop_rpc_encode(crop_type, growth, player.row, player.col))
+                    db.add_crop(crop_type, growth, player.row, player.col)
+                    print(f"{player.username} planted a '{str(game_map.get_crop(player.row, player.col))}' at ({player.row}, {player.col})")
                 
                 elif rpc_id == lib.protocols.HARVEST_INPUT_RPC_ID:
                     if game_map.cell_empty(player.row, player.col):
                         raise ValueError(lib.protocols.PLANT_INPUT_RPC_ID)
-                    game_map.harvest_crop(player.row, player.col)
-                    broadcast(players, lib.protocols.harvest_crop_rpc_encode(player.row, player.col))
+                    profit = min(lib.consts.MAX_PROFIT, profit + game_map.harvest_crop(player.row, player.col))
+                    broadcast(players, lib.protocols.harvest_crop_rpc_encode(profit, player.row, player.col))
+                    db.remove_crop(profit, player.row, player.col)
+                    print(f"{player.username} harvested at ({player.row}, {player.col}), profits are now {profit}")
             
             # handle faulty rpc composition
             except ValueError as err:
@@ -146,13 +159,14 @@ while True:
         crop.grow(delta)
         # send update to clients
         broadcast(players, lib.protocols.crop_grow_rpc_encode(crop.growth, row, col))
+        db.set_crop_growth(crop.growth, row, col)
     
     # send all non empty buffers
     for player in players:
         id, buffer = players[player]
         if not buffer.is_empty:
-            print(str(buffer.get_buffer()))
             player.send(buffer.get_buffer())
+        # clear buffer for next tick
         buffer.reset_buffer()
 
     last_tick = new_tick

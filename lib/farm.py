@@ -39,6 +39,12 @@ class Farm:
     def add_player(self, id, username, row, col):
         self.players[id] = lib.player.Player(id, username, row, col)
         self.set_player_pos(id, row, col)
+    
+    def has_player(self, username):
+        for id in self.players:
+            if self.players[id].username == username:
+                return True
+        return False
 
     def get_player(self, id):
         return self.players[id]
@@ -91,13 +97,6 @@ class Farm:
         return self.get_crop(row, col) is None
     
     def harvest_crop(self, row, col):
-        price = self.get_crop(row, col).price
+        price = self.get_crop(row, col).price()
         self.grid[row][col]['crop'] = None
         return price
-
-def deserialize_coords(val):
-    coords_strs = val.split('x')
-    return (int(coords_strs[0]), int(coords_strs[1]))
-
-def serialize_coords(row, col):
-    return f'{row}x{col}'
