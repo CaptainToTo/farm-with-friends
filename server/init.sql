@@ -3,8 +3,6 @@
 CREATE TABLE Users(
     id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(255) NOT NULL UNIQUE,
-    player_level INT NOT NULL,
-    player_exp INT NOT NULL,
     pos_x INT NOT NULL,
     pos_y INT NOT NULL
 );
@@ -21,4 +19,4 @@ CREATE INDEX crops_index ON Crops(coords);
 
 CREATE TABLE Profit(
     val INT NOT NULL
-)
+);

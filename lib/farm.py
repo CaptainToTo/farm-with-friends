@@ -12,14 +12,25 @@ class Farm:
     def is_valid_coord(self, row, col):
         return 0 <= row < self.height and 0 <= col < self.width
     
+    def is_next_to_player(self, id, row, col):
+        player = self.get_player(id)
+        return ((row == player.row - 1 or row == player.row + 1) and col == player.col) or \
+                ((col == player.col - 1 or col == player.col + 1) and row == player.row)
+    
     def __str__(self):
         result = ""
         for row in self.grid:
             for col in row:
-                if (col['crop'] == None):
-                    result += ". "
+                if (len(col['players']) > 0):
+                    result += " * "
                 else:
-                    result += f'{str(col['crop'])} '
+                    result += f'   '
+            result += "\n"
+            for col in row:
+                if (col['crop'] is None):
+                    result += "[ ]"
+                else:
+                    result += f'[{str(col['crop'])}]'
             result += "\n"
         return result
     
@@ -68,8 +79,16 @@ class Farm:
     def get_crop(self, row, col):
         return self.grid[row][col]['crop']
     
+    def get_crops(self):
+        crops = []
+        for row in range(len(self.grid)):
+            for col in range(len(self.grid[row])):
+                if self.grid[row][col]['crop'] is not None:
+                    crops.append((self.grid[row][col]['crop'], row, col))
+        return crops
+    
     def cell_empty(self, row, col):
-        return self.get_crop(row, col) == None
+        return self.get_crop(row, col) is None
     
     def harvest_crop(self, row, col):
         price = self.get_crop(row, col).price

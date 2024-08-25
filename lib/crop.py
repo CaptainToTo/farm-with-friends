@@ -10,4 +10,7 @@ class Crop:
         return lib.consts.CROP_CHAR[self.crop_type]
     
     def price(self):
-        return self.growth * lib.consts.CROP_PROFIT_MULT[self.crop_type]
+        return int(self.growth * lib.consts.CROP_PROFIT_MULT[self.crop_type])
+    
+    def grow(self, delta):
+        self.growth = min(lib.consts.MAX_GROWTH, self.growth + (delta * lib.consts.CROP_GROWTH_MULT[self.crop_type]))
