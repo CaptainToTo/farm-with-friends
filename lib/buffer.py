@@ -1,3 +1,5 @@
+
+# used to concat RPCs into a single package. RPCs are separated by a '0xff' byte
 class Buffer:
     def __init__(self):
         self.bytes = bytes()
