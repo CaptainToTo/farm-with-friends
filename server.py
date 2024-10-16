@@ -65,7 +65,7 @@ while True:
             username = client.recv(lib.consts.BUFFER_SIZE).decode()
 
             # reject if player is already logged in
-            if game_map.has_player(username):
+            if username == "" or game_map.has_player(username):
                 client.close()
                 continue
 
